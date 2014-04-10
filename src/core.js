@@ -75,11 +75,13 @@ nv.log = function() {
   return arguments[arguments.length - 1];
 };
 
+nv.previouslyWarned = {};
 nv.deprecated = function(name) {
-  if (nv.dev && console && console.warn)
+  if (nv.dev && console && console.warn && !previouslyWarned[name]){
     console.warn('`' + name + '` has been deprecated.');
+    previouslyWarned[name] = true;
+  }
 }
-
 
 nv.render = function render(step) {
   step = step || 1; // number of graphs to generate in each timeout loop
