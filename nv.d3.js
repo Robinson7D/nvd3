@@ -76,11 +76,13 @@ nv.log = function() {
   return arguments[arguments.length - 1];
 };
 
+nv.previouslyWarned = {};
 nv.deprecated = function(name) {
-  if (nv.dev && console && console.warn)
+  if (nv.dev && console && console.warn && !nv.previouslyWarned[name]){
     console.warn('`' + name + '` has been deprecated.');
+    nv.previouslyWarned[name] = true;
+  }
 }
-
 
 nv.render = function render(step) {
   step = step || 1; // number of graphs to generate in each timeout loop
@@ -417,7 +419,7 @@ window.nv.tooltip.* also has various helper methods.
   window.nv.tooltip = {};
 
   /* Model which can be instantiated to handle tooltip rendering.
-    Example usage: 
+    Example usage:
     var tip = nv.models.tooltip().gravity('w').distance(23)
                 .data(myDataObject);
 
@@ -429,7 +431,7 @@ window.nv.tooltip.* also has various helper methods.
         Format of data:
         {
             key: "Date",
-            value: "August 2009", 
+            value: "August 2009",
             series: [
                     {
                         key: "Series 1",
@@ -519,6 +521,7 @@ window.nv.tooltip.* also has various helper methods.
                     d3.select(this)
                         .style("border-bottom-color", opacityScale(opacity))
                         .style("border-top-color", opacityScale(opacity))
+                        .style("background-color", opacityScale(opacity/2))
                         ;
                 }
             });
@@ -547,7 +550,7 @@ window.nv.tooltip.* also has various helper methods.
               if (viewBox) {
                 viewBox = viewBox.split(' ');
                 var ratio = parseInt(svg.style('width')) / viewBox[2];
-                
+
                 position.left = position.left * ratio;
                 position.top  = position.top * ratio;
               }
@@ -570,7 +573,7 @@ window.nv.tooltip.* also has various helper methods.
                     .attr("id",id)
                     ;
             }
-        
+
 
             container.node().innerHTML = newContent;
             container.style("top",0).style("left",0).style("opacity",0);
@@ -579,7 +582,7 @@ window.nv.tooltip.* also has various helper methods.
             return container.node();
         }
 
-        
+
 
         //Draw the tooltip onto the DOM.
         function nvtooltip() {
@@ -600,14 +603,14 @@ window.nv.tooltip.* also has various helper methods.
                     var svgBound = svgComp.getBoundingClientRect();
                     var chartBound = chartContainer.getBoundingClientRect();
                     var svgBoundTop = svgBound.top;
-                    
+
                     //Defensive code. Sometimes, svgBoundTop can be a really negative
-                    //  number, like -134254. That's a bug. 
+                    //  number, like -134254. That's a bug.
                     //  If such a number is found, use zero instead. FireFox bug only
                     if (svgBoundTop < 0) {
                         var containerBound = chartContainer.getBoundingClientRect();
                         svgBoundTop = (Math.abs(svgBoundTop) > containerBound.height) ? 0 : svgBoundTop;
-                    } 
+                    }
                     svgOffset.top = Math.abs(svgBoundTop - chartBound.top);
                     svgOffset.left = Math.abs(svgBound.left - chartBound.left);
                 }
@@ -627,7 +630,7 @@ window.nv.tooltip.* also has various helper methods.
         };
 
         nvtooltip.nvPointerEventsClass = nvPointerEventsClass;
-        
+
         nvtooltip.content = function(_) {
             if (!arguments.length) return content;
             content = _;
@@ -731,7 +734,7 @@ window.nv.tooltip.* also has various helper methods.
   //Original tooltip.show function. Kept for backward compatibility.
   // pos = [left,top]
   nv.tooltip.show = function(pos, content, gravity, dist, parentContainer, classes) {
-      
+
         //Create new tooltip div if it doesn't exist on DOM.
         var   container = document.createElement('div');
         container.className = 'nvtooltip ' + (classes ? classes : 'xy-tooltip');
@@ -741,7 +744,7 @@ window.nv.tooltip.* also has various helper methods.
             //If the parent element is an SVG element, place tooltip in the <body> element.
             body = document.getElementsByTagName('body')[0];
         }
-   
+
         container.style.left = 0;
         container.style.top = 0;
         container.style.opacity = 0;
@@ -751,7 +754,7 @@ window.nv.tooltip.* also has various helper methods.
         else
             container.innerHTML = content;
         body.appendChild(container);
-        
+
         //If the parent container is an overflow <div> with scrollbars, subtract the scroll offsets.
         if (parentContainer) {
            pos[0] = pos[0] - parentContainer.scrollLeft;
@@ -768,32 +771,6 @@ window.nv.tooltip.* also has various helper methods.
             return Elem;
   };
 
-  //Finds the total offsetTop of a given DOM element.
-  //Looks up the entire ancestry of an element, up to the first relatively positioned element.
-  nv.tooltip.findTotalOffsetTop = function ( Elem, initialTop ) {
-                var offsetTop = initialTop;
-                
-                do {
-                    if( !isNaN( Elem.offsetTop ) ) {
-                        offsetTop += (Elem.offsetTop);
-                    }
-                } while( Elem = Elem.offsetParent );
-                return offsetTop;
-  };
-
-  //Finds the total offsetLeft of a given DOM element.
-  //Looks up the entire ancestry of an element, up to the first relatively positioned element.
-  nv.tooltip.findTotalOffsetLeft = function ( Elem, initialLeft) {
-                var offsetLeft = initialLeft;
-                
-                do {
-                    if( !isNaN( Elem.offsetLeft ) ) {
-                        offsetLeft += (Elem.offsetLeft);
-                    }
-                } while( Elem = Elem.offsetParent );
-                return offsetLeft;
-  };
-
   //Global utility function to render a tooltip on the DOM.
   //pos = [left,top] coordinates of where to place the tooltip, relative to the SVG chart container.
   //gravity = how to orient the tooltip
@@ -803,24 +780,23 @@ window.nv.tooltip.* also has various helper methods.
 
             var height = parseInt(container.offsetHeight),
                 width = parseInt(container.offsetWidth),
-                windowWidth = nv.utils.windowSize().width,
-                windowHeight = nv.utils.windowSize().height,
-                scrollTop = window.pageYOffset,
-                scrollLeft = window.pageXOffset,
+                offsetFrame = container.offsetParent,
+                frameWidth = offsetFrame.offsetWidth,
+                frameHeight = offsetFrame.offsetHeight,
+                scrollTop = offsetFrame.scrollTop,
+                scrollLeft = offsetFrame.scrollLeft,
                 left, top;
-
-            windowHeight = window.innerWidth >= document.body.scrollWidth ? windowHeight : windowHeight - 16;
-            windowWidth = window.innerHeight >= document.body.scrollHeight ? windowWidth : windowWidth - 16;
-
             gravity = gravity || 's';
             dist = dist || 20;
 
             var tooltipTop = function ( Elem ) {
-                return nv.tooltip.findTotalOffsetTop(Elem, top);
+              var _offset_top = offsetFrame ? offsetFrame.offsetTop : 0;
+              return isNaN(_offset_top) ? _offset_top + top : top;
             };
 
             var tooltipLeft = function ( Elem ) {
-                return nv.tooltip.findTotalOffsetLeft(Elem,left);
+              var _offset_left = offsetFrame ? offsetFrame.offsetLeft : 0;
+              return isNaN(_offset_left) ? _offset_left + left : left;
             };
 
             switch (gravity) {
@@ -831,16 +807,16 @@ window.nv.tooltip.* also has various helper methods.
                 var tTop = tooltipTop(container);
                 if (tLeft < scrollLeft) left = pos[0] + dist > scrollLeft ? pos[0] + dist : scrollLeft - tLeft + left;
                 if (tTop < scrollTop) top = scrollTop - tTop + top;
-                if (tTop + height > scrollTop + windowHeight) top = scrollTop + windowHeight - tTop + top - height;
+                if (tTop + height > scrollTop + frameHeight) top = scrollTop + frameHeight - tTop + top - height;
                 break;
               case 'w':
                 left = pos[0] + dist;
                 top = pos[1] - (height / 2);
                 var tLeft = tooltipLeft(container);
                 var tTop = tooltipTop(container);
-                if (tLeft + width > windowWidth) left = pos[0] - width - dist;
+                if (tLeft + width > frameWidth) left = pos[0] - width - dist;
                 if (tTop < scrollTop) top = scrollTop + 5;
-                if (tTop + height > scrollTop + windowHeight) top = scrollTop + windowHeight - tTop + top - height;
+                if (tTop + height > scrollTop + frameHeight) top = scrollTop + frameHeight - tTop + top - height;
                 break;
               case 'n':
                 left = pos[0] - (width / 2) - 5;
@@ -848,8 +824,8 @@ window.nv.tooltip.* also has various helper methods.
                 var tLeft = tooltipLeft(container);
                 var tTop = tooltipTop(container);
                 if (tLeft < scrollLeft) left = scrollLeft + 5;
-                if (tLeft + width > windowWidth) left = left - width/2 + 5;
-                if (tTop + height > scrollTop + windowHeight) top = scrollTop + windowHeight - tTop + top - height;
+                if (tLeft + width > frameWidth) left = left - width/2 + 5;
+                if (tTop + height > scrollTop + frameHeight) top = scrollTop + frameHeight - tTop + top - height;
                 break;
               case 's':
                 left = pos[0] - (width / 2);
@@ -857,7 +833,7 @@ window.nv.tooltip.* also has various helper methods.
                 var tLeft = tooltipLeft(container);
                 var tTop = tooltipTop(container);
                 if (tLeft < scrollLeft) left = scrollLeft + 5;
-                if (tLeft + width > windowWidth) left = left - width/2 + 5;
+                if (tLeft + width > frameWidth) left = left - width/2 + 5;
                 if (scrollTop > tTop) top = scrollTop;
                 break;
               case 'none':
@@ -872,7 +848,7 @@ window.nv.tooltip.* also has various helper methods.
             container.style.left = left+'px';
             container.style.top = top+'px';
             container.style.opacity = 1;
-            container.style.position = 'absolute'; 
+            container.style.position = 'absolute';
 
             return container;
     };
@@ -1548,6 +1524,337 @@ nv.models.axis = function() {
     return chart;
   };
 
+
+  //============================================================
+
+
+  return chart;
+}
+//TODO: consider deprecating and using multibar with single series for this
+nv.models.historicalBar = function() {
+  "use strict";
+  //============================================================
+  // Public Variables with Default Settings
+  //------------------------------------------------------------
+
+  var margin = {top: 0, right: 0, bottom: 0, left: 0}
+    , width = 960
+    , height = 500
+    , id = Math.floor(Math.random() * 10000) //Create semi-unique ID in case user doesn't select one
+    , x = d3.scale.linear()
+    , y = d3.scale.linear()
+    , getX = function(d) { return d.x }
+    , getY = function(d) { return d.y }
+    , forceX = []
+    , forceY = [0]
+    , padData = false
+    , clipEdge = true
+    , color = nv.utils.defaultColor()
+    , xDomain
+    , yDomain
+    , xRange
+    , yRange
+    , dispatch = d3.dispatch('chartClick', 'elementClick', 'elementDblClick', 'elementMouseover', 'elementMouseout')
+    , interactive = true
+    ;
+
+  //============================================================
+
+
+  function chart(selection) {
+    selection.each(function(data) {
+      var availableWidth = width - margin.left - margin.right,
+          availableHeight = height - margin.top - margin.bottom,
+          container = d3.select(this);
+
+
+      //------------------------------------------------------------
+      // Setup Scales
+
+      x   .domain(xDomain || d3.extent(data[0].values.map(getX).concat(forceX) ))
+
+      if (padData)
+        x.range(xRange || [availableWidth * .5 / data[0].values.length, availableWidth * (data[0].values.length - .5)  / data[0].values.length ]);
+      else
+        x.range(xRange || [0, availableWidth]);
+
+      y   .domain(yDomain || d3.extent(data[0].values.map(getY).concat(forceY) ))
+          .range(yRange || [availableHeight, 0]);
+
+      // If scale's domain don't have a range, slightly adjust to make one... so a chart can show a single data point
+
+      if (x.domain()[0] === x.domain()[1])
+        x.domain()[0] ?
+            x.domain([x.domain()[0] - x.domain()[0] * 0.01, x.domain()[1] + x.domain()[1] * 0.01])
+          : x.domain([-1,1]);
+
+      if (y.domain()[0] === y.domain()[1])
+        y.domain()[0] ?
+            y.domain([y.domain()[0] + y.domain()[0] * 0.01, y.domain()[1] - y.domain()[1] * 0.01])
+          : y.domain([-1,1]);
+
+      //------------------------------------------------------------
+
+
+      //------------------------------------------------------------
+      // Setup containers and skeleton of chart
+
+      var wrap = container.selectAll('g.nv-wrap.nv-historicalBar-' + id).data([data[0].values]);
+      var wrapEnter = wrap.enter().append('g').attr('class', 'nvd3 nv-wrap nv-historicalBar-' + id);
+      var defsEnter = wrapEnter.append('defs');
+      var gEnter = wrapEnter.append('g');
+      var g = wrap.select('g');
+
+      gEnter.append('g').attr('class', 'nv-bars');
+
+      wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+      //------------------------------------------------------------
+
+
+      container
+          .on('click', function(d,i) {
+            dispatch.chartClick({
+                data: d,
+                index: i,
+                pos: d3.event,
+                id: id
+            });
+          });
+
+
+      defsEnter.append('clipPath')
+          .attr('id', 'nv-chart-clip-path-' + id)
+        .append('rect');
+
+      wrap.select('#nv-chart-clip-path-' + id + ' rect')
+          .attr('width', availableWidth)
+          .attr('height', availableHeight);
+
+      g   .attr('clip-path', clipEdge ? 'url(#nv-chart-clip-path-' + id + ')' : '');
+
+
+
+      var bars = wrap.select('.nv-bars').selectAll('.nv-bar')
+          .data(function(d) { return d }, function(d,i) {return getX(d,i)});
+
+      bars.exit().remove();
+
+
+      var barsEnter = bars.enter().append('rect')
+          //.attr('class', function(d,i,j) { return (getY(d,i) < 0 ? 'nv-bar negative' : 'nv-bar positive') + ' nv-bar-' + j + '-' + i })
+          .attr('x', 0 )
+          .attr('y', function(d,i) {  return nv.utils.NaNtoZero(y(Math.max(0, getY(d,i)))) })
+          .attr('height', function(d,i) { return nv.utils.NaNtoZero(Math.abs(y(getY(d,i)) - y(0))) })
+          .attr('transform', function(d,i) { return 'translate(' + (x(getX(d,i)) - availableWidth / data[0].values.length * .45) + ',0)'; }) 
+          .on('mouseover', function(d,i) {
+            if (!interactive) return;
+            d3.select(this).classed('hover', true);
+            dispatch.elementMouseover({
+                point: d,
+                series: data[0],
+                pos: [x(getX(d,i)), y(getY(d,i))],  // TODO: Figure out why the value appears to be shifted
+                pointIndex: i,
+                seriesIndex: 0,
+                e: d3.event
+            });
+
+          })
+          .on('mouseout', function(d,i) {
+                if (!interactive) return;
+                d3.select(this).classed('hover', false);
+                dispatch.elementMouseout({
+                    point: d,
+                    series: data[0],
+                    pointIndex: i,
+                    seriesIndex: 0,
+                    e: d3.event
+                });
+          })
+          .on('click', function(d,i) {
+                if (!interactive) return;
+                dispatch.elementClick({
+                    //label: d[label],
+                    value: getY(d,i),
+                    data: d,
+                    index: i,
+                    pos: [x(getX(d,i)), y(getY(d,i))],
+                    e: d3.event,
+                    id: id
+                });
+              d3.event.stopPropagation();
+          })
+          .on('dblclick', function(d,i) {
+              if (!interactive) return;
+              dispatch.elementDblClick({
+                  //label: d[label],
+                  value: getY(d,i),
+                  data: d,
+                  index: i,
+                  pos: [x(getX(d,i)), y(getY(d,i))],
+                  e: d3.event,
+                  id: id
+              });
+              d3.event.stopPropagation();
+          });
+
+      bars
+          .attr('fill', function(d,i) { return color(d, i); })
+          .attr('class', function(d,i,j) { return (getY(d,i) < 0 ? 'nv-bar negative' : 'nv-bar positive') + ' nv-bar-' + j + '-' + i })
+          .transition()
+          .attr('transform', function(d,i) { return 'translate(' + (x(getX(d,i)) - availableWidth / data[0].values.length * .45) + ',0)'; }) 
+           //TODO: better width calculations that don't assume always uniform data spacing;w
+          .attr('width', (availableWidth / data[0].values.length) * .9 );
+
+
+      bars.transition()
+          .attr('y', function(d,i) {
+            var rval = getY(d,i) < 0 ?
+                    y(0) :
+                    y(0) - y(getY(d,i)) < 1 ?
+                      y(0) - 1 :
+                      y(getY(d,i));
+            return nv.utils.NaNtoZero(rval);
+          })
+          .attr('height', function(d,i) { return nv.utils.NaNtoZero(Math.max(Math.abs(y(getY(d,i)) - y(0)),1)) });
+
+    });
+
+    return chart;
+  }
+
+  //Create methods to allow outside functions to highlight a specific bar.
+  chart.highlightPoint = function(pointIndex, isHoverOver) {
+      d3.select(".nv-historicalBar-" + id)
+        .select(".nv-bars .nv-bar-0-" + pointIndex)
+              .classed("hover", isHoverOver)
+               ;
+  };
+
+  chart.clearHighlights = function() {
+      d3.select(".nv-historicalBar-" + id)
+        .select(".nv-bars .nv-bar.hover")
+              .classed("hover", false)
+               ;
+  };
+  //============================================================
+  // Expose Public Variables
+  //------------------------------------------------------------
+
+  chart.dispatch = dispatch;
+
+  chart.options = nv.utils.optionsFunc.bind(chart);
+  
+  chart.x = function(_) {
+    if (!arguments.length) return getX;
+    getX = _;
+    return chart;
+  };
+
+  chart.y = function(_) {
+    if (!arguments.length) return getY;
+    getY = _;
+    return chart;
+  };
+
+  chart.margin = function(_) {
+    if (!arguments.length) return margin;
+    margin.top    = typeof _.top    != 'undefined' ? _.top    : margin.top;
+    margin.right  = typeof _.right  != 'undefined' ? _.right  : margin.right;
+    margin.bottom = typeof _.bottom != 'undefined' ? _.bottom : margin.bottom;
+    margin.left   = typeof _.left   != 'undefined' ? _.left   : margin.left;
+    return chart;
+  };
+
+  chart.width = function(_) {
+    if (!arguments.length) return width;
+    width = _;
+    return chart;
+  };
+
+  chart.height = function(_) {
+    if (!arguments.length) return height;
+    height = _;
+    return chart;
+  };
+
+  chart.xScale = function(_) {
+    if (!arguments.length) return x;
+    x = _;
+    return chart;
+  };
+
+  chart.yScale = function(_) {
+    if (!arguments.length) return y;
+    y = _;
+    return chart;
+  };
+
+  chart.xDomain = function(_) {
+    if (!arguments.length) return xDomain;
+    xDomain = _;
+    return chart;
+  };
+
+  chart.yDomain = function(_) {
+    if (!arguments.length) return yDomain;
+    yDomain = _;
+    return chart;
+  };
+
+  chart.xRange = function(_) {
+    if (!arguments.length) return xRange;
+    xRange = _;
+    return chart;
+  };
+
+  chart.yRange = function(_) {
+    if (!arguments.length) return yRange;
+    yRange = _;
+    return chart;
+  };
+
+  chart.forceX = function(_) {
+    if (!arguments.length) return forceX;
+    forceX = _;
+    return chart;
+  };
+
+  chart.forceY = function(_) {
+    if (!arguments.length) return forceY;
+    forceY = _;
+    return chart;
+  };
+
+  chart.padData = function(_) {
+    if (!arguments.length) return padData;
+    padData = _;
+    return chart;
+  };
+
+  chart.clipEdge = function(_) {
+    if (!arguments.length) return clipEdge;
+    clipEdge = _;
+    return chart;
+  };
+
+  chart.color = function(_) {
+    if (!arguments.length) return color;
+    color = nv.utils.getColor(_);
+    return chart;
+  };
+
+  chart.id = function(_) {
+    if (!arguments.length) return id;
+    id = _;
+    return chart;
+  };
+
+  chart.interactive = function(_) {
+    if(!arguments.length) return interactive;
+    interactive = false;
+    return chart;
+  };
 
   //============================================================
 
@@ -3928,337 +4235,6 @@ nv.models.distribution = function() {
     renderWatch.reset(duration);
     return chart;
   };
-  //============================================================
-
-
-  return chart;
-}
-//TODO: consider deprecating and using multibar with single series for this
-nv.models.historicalBar = function() {
-  "use strict";
-  //============================================================
-  // Public Variables with Default Settings
-  //------------------------------------------------------------
-
-  var margin = {top: 0, right: 0, bottom: 0, left: 0}
-    , width = 960
-    , height = 500
-    , id = Math.floor(Math.random() * 10000) //Create semi-unique ID in case user doesn't select one
-    , x = d3.scale.linear()
-    , y = d3.scale.linear()
-    , getX = function(d) { return d.x }
-    , getY = function(d) { return d.y }
-    , forceX = []
-    , forceY = [0]
-    , padData = false
-    , clipEdge = true
-    , color = nv.utils.defaultColor()
-    , xDomain
-    , yDomain
-    , xRange
-    , yRange
-    , dispatch = d3.dispatch('chartClick', 'elementClick', 'elementDblClick', 'elementMouseover', 'elementMouseout')
-    , interactive = true
-    ;
-
-  //============================================================
-
-
-  function chart(selection) {
-    selection.each(function(data) {
-      var availableWidth = width - margin.left - margin.right,
-          availableHeight = height - margin.top - margin.bottom,
-          container = d3.select(this);
-
-
-      //------------------------------------------------------------
-      // Setup Scales
-
-      x   .domain(xDomain || d3.extent(data[0].values.map(getX).concat(forceX) ))
-
-      if (padData)
-        x.range(xRange || [availableWidth * .5 / data[0].values.length, availableWidth * (data[0].values.length - .5)  / data[0].values.length ]);
-      else
-        x.range(xRange || [0, availableWidth]);
-
-      y   .domain(yDomain || d3.extent(data[0].values.map(getY).concat(forceY) ))
-          .range(yRange || [availableHeight, 0]);
-
-      // If scale's domain don't have a range, slightly adjust to make one... so a chart can show a single data point
-
-      if (x.domain()[0] === x.domain()[1])
-        x.domain()[0] ?
-            x.domain([x.domain()[0] - x.domain()[0] * 0.01, x.domain()[1] + x.domain()[1] * 0.01])
-          : x.domain([-1,1]);
-
-      if (y.domain()[0] === y.domain()[1])
-        y.domain()[0] ?
-            y.domain([y.domain()[0] + y.domain()[0] * 0.01, y.domain()[1] - y.domain()[1] * 0.01])
-          : y.domain([-1,1]);
-
-      //------------------------------------------------------------
-
-
-      //------------------------------------------------------------
-      // Setup containers and skeleton of chart
-
-      var wrap = container.selectAll('g.nv-wrap.nv-historicalBar-' + id).data([data[0].values]);
-      var wrapEnter = wrap.enter().append('g').attr('class', 'nvd3 nv-wrap nv-historicalBar-' + id);
-      var defsEnter = wrapEnter.append('defs');
-      var gEnter = wrapEnter.append('g');
-      var g = wrap.select('g');
-
-      gEnter.append('g').attr('class', 'nv-bars');
-
-      wrap.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-
-      //------------------------------------------------------------
-
-
-      container
-          .on('click', function(d,i) {
-            dispatch.chartClick({
-                data: d,
-                index: i,
-                pos: d3.event,
-                id: id
-            });
-          });
-
-
-      defsEnter.append('clipPath')
-          .attr('id', 'nv-chart-clip-path-' + id)
-        .append('rect');
-
-      wrap.select('#nv-chart-clip-path-' + id + ' rect')
-          .attr('width', availableWidth)
-          .attr('height', availableHeight);
-
-      g   .attr('clip-path', clipEdge ? 'url(#nv-chart-clip-path-' + id + ')' : '');
-
-
-
-      var bars = wrap.select('.nv-bars').selectAll('.nv-bar')
-          .data(function(d) { return d }, function(d,i) {return getX(d,i)});
-
-      bars.exit().remove();
-
-
-      var barsEnter = bars.enter().append('rect')
-          //.attr('class', function(d,i,j) { return (getY(d,i) < 0 ? 'nv-bar negative' : 'nv-bar positive') + ' nv-bar-' + j + '-' + i })
-          .attr('x', 0 )
-          .attr('y', function(d,i) {  return nv.utils.NaNtoZero(y(Math.max(0, getY(d,i)))) })
-          .attr('height', function(d,i) { return nv.utils.NaNtoZero(Math.abs(y(getY(d,i)) - y(0))) })
-          .attr('transform', function(d,i) { return 'translate(' + (x(getX(d,i)) - availableWidth / data[0].values.length * .45) + ',0)'; }) 
-          .on('mouseover', function(d,i) {
-            if (!interactive) return;
-            d3.select(this).classed('hover', true);
-            dispatch.elementMouseover({
-                point: d,
-                series: data[0],
-                pos: [x(getX(d,i)), y(getY(d,i))],  // TODO: Figure out why the value appears to be shifted
-                pointIndex: i,
-                seriesIndex: 0,
-                e: d3.event
-            });
-
-          })
-          .on('mouseout', function(d,i) {
-                if (!interactive) return;
-                d3.select(this).classed('hover', false);
-                dispatch.elementMouseout({
-                    point: d,
-                    series: data[0],
-                    pointIndex: i,
-                    seriesIndex: 0,
-                    e: d3.event
-                });
-          })
-          .on('click', function(d,i) {
-                if (!interactive) return;
-                dispatch.elementClick({
-                    //label: d[label],
-                    value: getY(d,i),
-                    data: d,
-                    index: i,
-                    pos: [x(getX(d,i)), y(getY(d,i))],
-                    e: d3.event,
-                    id: id
-                });
-              d3.event.stopPropagation();
-          })
-          .on('dblclick', function(d,i) {
-              if (!interactive) return;
-              dispatch.elementDblClick({
-                  //label: d[label],
-                  value: getY(d,i),
-                  data: d,
-                  index: i,
-                  pos: [x(getX(d,i)), y(getY(d,i))],
-                  e: d3.event,
-                  id: id
-              });
-              d3.event.stopPropagation();
-          });
-
-      bars
-          .attr('fill', function(d,i) { return color(d, i); })
-          .attr('class', function(d,i,j) { return (getY(d,i) < 0 ? 'nv-bar negative' : 'nv-bar positive') + ' nv-bar-' + j + '-' + i })
-          .transition()
-          .attr('transform', function(d,i) { return 'translate(' + (x(getX(d,i)) - availableWidth / data[0].values.length * .45) + ',0)'; }) 
-           //TODO: better width calculations that don't assume always uniform data spacing;w
-          .attr('width', (availableWidth / data[0].values.length) * .9 );
-
-
-      bars.transition()
-          .attr('y', function(d,i) {
-            var rval = getY(d,i) < 0 ?
-                    y(0) :
-                    y(0) - y(getY(d,i)) < 1 ?
-                      y(0) - 1 :
-                      y(getY(d,i));
-            return nv.utils.NaNtoZero(rval);
-          })
-          .attr('height', function(d,i) { return nv.utils.NaNtoZero(Math.max(Math.abs(y(getY(d,i)) - y(0)),1)) });
-
-    });
-
-    return chart;
-  }
-
-  //Create methods to allow outside functions to highlight a specific bar.
-  chart.highlightPoint = function(pointIndex, isHoverOver) {
-      d3.select(".nv-historicalBar-" + id)
-        .select(".nv-bars .nv-bar-0-" + pointIndex)
-              .classed("hover", isHoverOver)
-               ;
-  };
-
-  chart.clearHighlights = function() {
-      d3.select(".nv-historicalBar-" + id)
-        .select(".nv-bars .nv-bar.hover")
-              .classed("hover", false)
-               ;
-  };
-  //============================================================
-  // Expose Public Variables
-  //------------------------------------------------------------
-
-  chart.dispatch = dispatch;
-
-  chart.options = nv.utils.optionsFunc.bind(chart);
-  
-  chart.x = function(_) {
-    if (!arguments.length) return getX;
-    getX = _;
-    return chart;
-  };
-
-  chart.y = function(_) {
-    if (!arguments.length) return getY;
-    getY = _;
-    return chart;
-  };
-
-  chart.margin = function(_) {
-    if (!arguments.length) return margin;
-    margin.top    = typeof _.top    != 'undefined' ? _.top    : margin.top;
-    margin.right  = typeof _.right  != 'undefined' ? _.right  : margin.right;
-    margin.bottom = typeof _.bottom != 'undefined' ? _.bottom : margin.bottom;
-    margin.left   = typeof _.left   != 'undefined' ? _.left   : margin.left;
-    return chart;
-  };
-
-  chart.width = function(_) {
-    if (!arguments.length) return width;
-    width = _;
-    return chart;
-  };
-
-  chart.height = function(_) {
-    if (!arguments.length) return height;
-    height = _;
-    return chart;
-  };
-
-  chart.xScale = function(_) {
-    if (!arguments.length) return x;
-    x = _;
-    return chart;
-  };
-
-  chart.yScale = function(_) {
-    if (!arguments.length) return y;
-    y = _;
-    return chart;
-  };
-
-  chart.xDomain = function(_) {
-    if (!arguments.length) return xDomain;
-    xDomain = _;
-    return chart;
-  };
-
-  chart.yDomain = function(_) {
-    if (!arguments.length) return yDomain;
-    yDomain = _;
-    return chart;
-  };
-
-  chart.xRange = function(_) {
-    if (!arguments.length) return xRange;
-    xRange = _;
-    return chart;
-  };
-
-  chart.yRange = function(_) {
-    if (!arguments.length) return yRange;
-    yRange = _;
-    return chart;
-  };
-
-  chart.forceX = function(_) {
-    if (!arguments.length) return forceX;
-    forceX = _;
-    return chart;
-  };
-
-  chart.forceY = function(_) {
-    if (!arguments.length) return forceY;
-    forceY = _;
-    return chart;
-  };
-
-  chart.padData = function(_) {
-    if (!arguments.length) return padData;
-    padData = _;
-    return chart;
-  };
-
-  chart.clipEdge = function(_) {
-    if (!arguments.length) return clipEdge;
-    clipEdge = _;
-    return chart;
-  };
-
-  chart.color = function(_) {
-    if (!arguments.length) return color;
-    color = nv.utils.getColor(_);
-    return chart;
-  };
-
-  chart.id = function(_) {
-    if (!arguments.length) return id;
-    id = _;
-    return chart;
-  };
-
-  chart.interactive = function(_) {
-    if(!arguments.length) return interactive;
-    interactive = false;
-    return chart;
-  };
-
   //============================================================
 
 
@@ -10740,11 +10716,13 @@ nv.models.pie = function() {
                       Adjust the label's y-position to remove the overlap.
                       */
                       var center = labelsArc.centroid(d);
-                      var hashKey = createHashKey(center);
-                      if (labelLocationHash[hashKey]) {
-                        center[1] -= avgHeight;
+                      if(d.value){
+                        var hashKey = createHashKey(center);
+                        if (labelLocationHash[hashKey]) {
+                          center[1] -= avgHeight;
+                        }
+                        labelLocationHash[createHashKey(center)] = true;
                       }
-                      labelLocationHash[createHashKey(center)] = true;
                       return 'translate(' + center + ')'
                     }
                 });

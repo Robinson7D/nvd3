@@ -77,9 +77,9 @@ nv.log = function() {
 
 nv.previouslyWarned = {};
 nv.deprecated = function(name) {
-  if (nv.dev && console && console.warn && !previouslyWarned[name]){
+  if (nv.dev && console && console.warn && !nv.previouslyWarned[name]){
     console.warn('`' + name + '` has been deprecated.');
-    previouslyWarned[name] = true;
+    nv.previouslyWarned[name] = true;
   }
 }
 
