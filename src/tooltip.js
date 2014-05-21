@@ -9,7 +9,7 @@ window.nv.tooltip.* also has various helper methods.
   window.nv.tooltip = {};
 
   /* Model which can be instantiated to handle tooltip rendering.
-    Example usage: 
+    Example usage:
     var tip = nv.models.tooltip().gravity('w').distance(23)
                 .data(myDataObject);
 
@@ -21,7 +21,7 @@ window.nv.tooltip.* also has various helper methods.
         Format of data:
         {
             key: "Date",
-            value: "August 2009", 
+            value: "August 2009",
             series: [
                     {
                         key: "Series 1",
@@ -111,6 +111,7 @@ window.nv.tooltip.* also has various helper methods.
                     d3.select(this)
                         .style("border-bottom-color", opacityScale(opacity))
                         .style("border-top-color", opacityScale(opacity))
+                        .style("background-color", opacityScale(opacity/2))
                         ;
                 }
             });
@@ -139,7 +140,7 @@ window.nv.tooltip.* also has various helper methods.
               if (viewBox) {
                 viewBox = viewBox.split(' ');
                 var ratio = parseInt(svg.style('width')) / viewBox[2];
-                
+
                 position.left = position.left * ratio;
                 position.top  = position.top * ratio;
               }
@@ -162,7 +163,7 @@ window.nv.tooltip.* also has various helper methods.
                     .attr("id",id)
                     ;
             }
-        
+
 
             container.node().innerHTML = newContent;
             container.style("top",0).style("left",0).style("opacity",0);
@@ -171,7 +172,7 @@ window.nv.tooltip.* also has various helper methods.
             return container.node();
         }
 
-        
+
 
         //Draw the tooltip onto the DOM.
         function nvtooltip() {
@@ -192,14 +193,14 @@ window.nv.tooltip.* also has various helper methods.
                     var svgBound = svgComp.getBoundingClientRect();
                     var chartBound = chartContainer.getBoundingClientRect();
                     var svgBoundTop = svgBound.top;
-                    
+
                     //Defensive code. Sometimes, svgBoundTop can be a really negative
-                    //  number, like -134254. That's a bug. 
+                    //  number, like -134254. That's a bug.
                     //  If such a number is found, use zero instead. FireFox bug only
                     if (svgBoundTop < 0) {
                         var containerBound = chartContainer.getBoundingClientRect();
                         svgBoundTop = (Math.abs(svgBoundTop) > containerBound.height) ? 0 : svgBoundTop;
-                    } 
+                    }
                     svgOffset.top = Math.abs(svgBoundTop - chartBound.top);
                     svgOffset.left = Math.abs(svgBound.left - chartBound.left);
                 }
@@ -219,7 +220,7 @@ window.nv.tooltip.* also has various helper methods.
         };
 
         nvtooltip.nvPointerEventsClass = nvPointerEventsClass;
-        
+
         nvtooltip.content = function(_) {
             if (!arguments.length) return content;
             content = _;
@@ -323,7 +324,7 @@ window.nv.tooltip.* also has various helper methods.
   //Original tooltip.show function. Kept for backward compatibility.
   // pos = [left,top]
   nv.tooltip.show = function(pos, content, gravity, dist, parentContainer, classes) {
-      
+
         //Create new tooltip div if it doesn't exist on DOM.
         var   container = document.createElement('div');
         container.className = 'nvtooltip ' + (classes ? classes : 'xy-tooltip');
@@ -333,7 +334,7 @@ window.nv.tooltip.* also has various helper methods.
             //If the parent element is an SVG element, place tooltip in the <body> element.
             body = document.getElementsByTagName('body')[0];
         }
-   
+
         container.style.left = 0;
         container.style.top = 0;
         container.style.opacity = 0;
@@ -343,7 +344,7 @@ window.nv.tooltip.* also has various helper methods.
         else
             container.innerHTML = content;
         body.appendChild(container);
-        
+
         //If the parent container is an overflow <div> with scrollbars, subtract the scroll offsets.
         if (parentContainer) {
            pos[0] = pos[0] - parentContainer.scrollLeft;
@@ -360,32 +361,6 @@ window.nv.tooltip.* also has various helper methods.
             return Elem;
   };
 
-  //Finds the total offsetTop of a given DOM element.
-  //Looks up the entire ancestry of an element, up to the first relatively positioned element.
-  nv.tooltip.findTotalOffsetTop = function ( Elem, initialTop ) {
-                var offsetTop = initialTop;
-                
-                do {
-                    if( !isNaN( Elem.offsetTop ) ) {
-                        offsetTop += (Elem.offsetTop);
-                    }
-                } while( Elem = Elem.offsetParent );
-                return offsetTop;
-  };
-
-  //Finds the total offsetLeft of a given DOM element.
-  //Looks up the entire ancestry of an element, up to the first relatively positioned element.
-  nv.tooltip.findTotalOffsetLeft = function ( Elem, initialLeft) {
-                var offsetLeft = initialLeft;
-                
-                do {
-                    if( !isNaN( Elem.offsetLeft ) ) {
-                        offsetLeft += (Elem.offsetLeft);
-                    }
-                } while( Elem = Elem.offsetParent );
-                return offsetLeft;
-  };
-
   //Global utility function to render a tooltip on the DOM.
   //pos = [left,top] coordinates of where to place the tooltip, relative to the SVG chart container.
   //gravity = how to orient the tooltip
@@ -395,24 +370,23 @@ window.nv.tooltip.* also has various helper methods.
 
             var height = parseInt(container.offsetHeight),
                 width = parseInt(container.offsetWidth),
-                windowWidth = nv.utils.windowSize().width,
-                windowHeight = nv.utils.windowSize().height,
-                scrollTop = window.pageYOffset,
-                scrollLeft = window.pageXOffset,
+                offsetFrame = container.offsetParent,
+                frameWidth = offsetFrame.offsetWidth,
+                frameHeight = offsetFrame.offsetHeight,
+                scrollTop = offsetFrame.scrollTop,
+                scrollLeft = offsetFrame.scrollLeft,
                 left, top;
-
-            windowHeight = window.innerWidth >= document.body.scrollWidth ? windowHeight : windowHeight - 16;
-            windowWidth = window.innerHeight >= document.body.scrollHeight ? windowWidth : windowWidth - 16;
-
             gravity = gravity || 's';
             dist = dist || 20;
 
             var tooltipTop = function ( Elem ) {
-                return nv.tooltip.findTotalOffsetTop(Elem, top);
+              var _offset_top = offsetFrame ? offsetFrame.offsetTop : 0;
+              return isNaN(_offset_top) ? _offset_top + top : top;
             };
 
             var tooltipLeft = function ( Elem ) {
-                return nv.tooltip.findTotalOffsetLeft(Elem,left);
+              var _offset_left = offsetFrame ? offsetFrame.offsetLeft : 0;
+              return isNaN(_offset_left) ? _offset_left + left : left;
             };
 
             switch (gravity) {
@@ -423,16 +397,16 @@ window.nv.tooltip.* also has various helper methods.
                 var tTop = tooltipTop(container);
                 if (tLeft < scrollLeft) left = pos[0] + dist > scrollLeft ? pos[0] + dist : scrollLeft - tLeft + left;
                 if (tTop < scrollTop) top = scrollTop - tTop + top;
-                if (tTop + height > scrollTop + windowHeight) top = scrollTop + windowHeight - tTop + top - height;
+                if (tTop + height > scrollTop + frameHeight) top = scrollTop + frameHeight - tTop + top - height;
                 break;
               case 'w':
                 left = pos[0] + dist;
                 top = pos[1] - (height / 2);
                 var tLeft = tooltipLeft(container);
                 var tTop = tooltipTop(container);
-                if (tLeft + width > windowWidth) left = pos[0] - width - dist;
+                if (tLeft + width > frameWidth) left = pos[0] - width - dist;
                 if (tTop < scrollTop) top = scrollTop + 5;
-                if (tTop + height > scrollTop + windowHeight) top = scrollTop + windowHeight - tTop + top - height;
+                if (tTop + height > scrollTop + frameHeight) top = scrollTop + frameHeight - tTop + top - height;
                 break;
               case 'n':
                 left = pos[0] - (width / 2) - 5;
@@ -440,8 +414,8 @@ window.nv.tooltip.* also has various helper methods.
                 var tLeft = tooltipLeft(container);
                 var tTop = tooltipTop(container);
                 if (tLeft < scrollLeft) left = scrollLeft + 5;
-                if (tLeft + width > windowWidth) left = left - width/2 + 5;
-                if (tTop + height > scrollTop + windowHeight) top = scrollTop + windowHeight - tTop + top - height;
+                if (tLeft + width > frameWidth) left = left - width/2 + 5;
+                if (tTop + height > scrollTop + frameHeight) top = scrollTop + frameHeight - tTop + top - height;
                 break;
               case 's':
                 left = pos[0] - (width / 2);
@@ -449,7 +423,7 @@ window.nv.tooltip.* also has various helper methods.
                 var tLeft = tooltipLeft(container);
                 var tTop = tooltipTop(container);
                 if (tLeft < scrollLeft) left = scrollLeft + 5;
-                if (tLeft + width > windowWidth) left = left - width/2 + 5;
+                if (tLeft + width > frameWidth) left = left - width/2 + 5;
                 if (scrollTop > tTop) top = scrollTop;
                 break;
               case 'none':
@@ -464,7 +438,7 @@ window.nv.tooltip.* also has various helper methods.
             container.style.left = left+'px';
             container.style.top = top+'px';
             container.style.opacity = 1;
-            container.style.position = 'absolute'; 
+            container.style.position = 'absolute';
 
             return container;
     };
