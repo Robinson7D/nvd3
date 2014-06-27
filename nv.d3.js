@@ -814,7 +814,10 @@ window.nv.tooltip.* also has various helper methods.
                 top = pos[1] - (height / 2);
                 var tLeft = tooltipLeft(container);
                 var tTop = tooltipTop(container);
-                if (tLeft + width > frameWidth) left = pos[0] - width - dist;
+
+                // For now, just stick to the right-hand side if overflow until flipping is fixed...
+                var overflowRight = Math.max(tLeft + width - frameWidth, 0) // No negatives
+                left -= overflowRight;
                 if (tTop < scrollTop) top = scrollTop + 5;
                 if (tTop + height > scrollTop + frameHeight) top = scrollTop + frameHeight - tTop + top - height;
                 break;
